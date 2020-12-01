@@ -9,7 +9,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Pillars\Spin.Pillars.v1\Spin.Pillars.v1.csproj" />
     <ProjectReference Include="..\..\Pillars\Spin.Pillars\Spin.Pillars.csproj" />
     <ProjectReference Include="..\..\Supergene\Spin.Supergene\Spin.Supergene.csproj" />
   </ItemGroup>

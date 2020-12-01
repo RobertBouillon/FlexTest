@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Linq;
-using System.Modules;
-using System.Modules.v1_0;
+using Spin.Pillars;
+using Spin.Pillars.v1;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
@@ -134,7 +134,7 @@ namespace Spin.FlexTest
       if (validator == null)
         validator = x => true;
       bool failed = false;
-      Try.Do(action).Catch(x => failed = validator(x));
+      FluentTry.Try(action).Catch(x => failed = validator(x));
       if (!failed)
         Fail($"{description} did not fail as expected");
     }

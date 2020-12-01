@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Modules;
-using System.Modules.v1_0;
+using Spin.Pillars;
+using Spin.Pillars.v1;
 using System.Reflection;
 
 namespace Spin.FlexTest
