@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Spin.Pillars;
-using Spin.Pillars.v1;
 using System.Reflection;
+using Spin.Pillars.Logging;
 
 namespace Spin.FlexTest
 {
   public class Tests : List<Test>
   {
-    private readonly IModule _module;
+    private readonly Pillars.Module _module;
     private Dictionary<String, Test> _index;
 
-    public static Tests FromAssembly(IModule module) =>
+    public static Tests FromAssembly(Pillars.Module module) =>
       new Tests(module,
         Assembly.GetCallingAssembly().GetTypes()
         .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -21,12 +21,12 @@ namespace Spin.FlexTest
         .Where(x => x.Attribute != null)
         .Select(x => new Test(module.AddChild(x.Attribute.GetName(x.Method)), x.Method)));
 
-    public static Tests Load(IModule module, params string[] assemblyNames) => Load(module, assemblyNames.Select(x=>Assembly.Load(x)));
+    public static Tests Load(Pillars.Module module, params string[] assemblyNames) => Load(module, assemblyNames.Select(x=>Assembly.Load(x)));
 
     private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetExecutingAssembly().Traverse(x => x.GetReferencedAssemblies().Select(y => Assembly.Load(y)));
     private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetExecutingAssembly().GetReferencedAssemblies().Where(x=>assemblyNames.Contains(x.Name)).Select(x=>Assembly.Load(x));
 
-    public static Tests Load(IModule module, IEnumerable<Assembly> assemblies) =>
+    public static Tests Load(Pillars.Module module, IEnumerable<Assembly> assemblies) =>
       new Tests(module,
         assemblies.SelectMany(y => y.GetTypes()
           .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -35,8 +35,8 @@ namespace Spin.FlexTest
           .Select(x => new Test(module.AddChild(x.Attribute.GetName(x.Method)), x.Method))));
 
 
-    public Tests(IModule module) => _module = module ?? throw new ArgumentNullException(nameof(module));
-    public Tests(IModule module, IEnumerable<Test> source) : base(source)
+    public Tests(Pillars.Module module) => _module = module ?? throw new ArgumentNullException(nameof(module));
+    public Tests(Pillars.Module module, IEnumerable<Test> source) : base(source)
     {
       _module = module ?? throw new ArgumentNullException(nameof(module));
       foreach (var test in this)
@@ -94,7 +94,7 @@ namespace Spin.FlexTest
       var cache = new HashSet<Type>()
       {
         typeof(Test),
-        typeof(IModule)
+        typeof(Pillars.Module)
       };
 
       foreach(var dependency in DependencyCache.Keys)

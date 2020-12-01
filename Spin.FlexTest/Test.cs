@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Linq;
 using Spin.Pillars;
-using Spin.Pillars.v1;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.IO;
+using Spin.Pillars.Logging;
 
 namespace Spin.FlexTest
 {
@@ -34,7 +34,7 @@ namespace Spin.FlexTest
     //public List<Test> Dependencies { get; } = new List<Test>();
     public Stopwatch Stopwatch { get; }
     public List<Milestone> Milestones { get; } = new List<Milestone>();
-    public IModule Module { get; }
+    public Pillars.Module Module { get; }
     public TimeSpan Elapsed { get; private set; }
     public Boolean Succeeded { get; private set; } = true;
     public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
@@ -43,7 +43,7 @@ namespace Spin.FlexTest
     public Type ReturnsObject { get; }
     public List<Test> DependentTests { get; internal set; }
 
-    public Test(IModule module, MethodInfo target)
+    public Test(Pillars.Module module, MethodInfo target)
     {
       #region Validation
       if (target == null)
@@ -155,7 +155,7 @@ namespace Spin.FlexTest
     {
       if (parameter.ParameterType == typeof(Test))
         return this;
-      else if (parameter.ParameterType == typeof(IModule))
+      else if (parameter.ParameterType == typeof(Pillars.Module))
         return Module;
       else if (objectCache.TryGetValue(parameter.ParameterType, out var dependency))
         return dependency;
