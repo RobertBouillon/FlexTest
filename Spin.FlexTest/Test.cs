@@ -117,10 +117,11 @@ namespace Spin.FlexTest
 
     public void Fail(string reason = null)
     {
+      reason ??= $"'{Name}' did not operate as expected";
       Module.Log.Write(LogSeverity.Error, reason);
       Succeeded = false;
       FailureReason = reason;
-      throw new Exception(reason ?? $"'{Name}' did not operate as expected");
+      throw new Exception(reason);
     }
 
     public void Assert(bool condition, string reason = null)
