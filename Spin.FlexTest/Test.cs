@@ -117,10 +117,10 @@ namespace Spin.FlexTest
 
     public void Fail(string reason = null)
     {
-      Module.Log.Write(LogSeverity.Error, reason);
+      Module.Log.Write(LogSeverity.Error, reason ??= $"'{Name}' did not operate as expected");
       Succeeded = false;
       FailureReason = reason;
-      throw new Exception(reason ?? $"'{Name}' did not operate as expected");
+      throw new Exception(reason);
     }
 
     public void Assert(bool condition, string reason = null)
@@ -143,13 +143,6 @@ namespace Spin.FlexTest
       Target.GetParameters().All(x => objectCache.Contains(x.ParameterType)) && !DependentTests.Any(x => !testsRun.Contains(x));
 
     public IEnumerable<Type> GetMissingDependencies(ISet<Type> objectCache) => Target.GetParameters().Select(x => x.ParameterType).Where(x => !objectCache.Contains(x));
-    //public IEnumerable<Type> GetMissingDependencies(ISet<Type> objectCache)
-    //{
-    //  var missing = Target.GetParameters().Select(x => x.ParameterType).Where(x => !objectCache.Contains(x)).ToList();
-    //  if(missing.Count > 0)
-    //    Console.WriteLine();
-    //  return missing;
-    //}
 
     private object GetDependency(ParameterInfo parameter, Dictionary<Type, Object> objectCache)
     {

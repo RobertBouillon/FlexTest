@@ -10,6 +10,8 @@ namespace Spin.FlexTest
 {
   public class Tests : List<Test>
   {
+    public static bool IsRunning { get; private set; }
+
     private readonly Pillars.Module _module;
     private Dictionary<String, Test> _index;
 
@@ -49,6 +51,7 @@ namespace Spin.FlexTest
 
     public void Run(Func<Test, bool> predicate = null)
     {
+      IsRunning = true;
       Stopwatch sw = new Stopwatch();
       sw.Start();
       int count = 0;
@@ -62,6 +65,7 @@ namespace Spin.FlexTest
       _module.Log.Write($"{count} tests completed in {sw.Elapsed}");
 
       DependencyCache.Clear();
+      IsRunning = false;
     }
 
     public Test this[string name]
