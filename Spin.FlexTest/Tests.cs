@@ -12,35 +12,33 @@ namespace Spin.FlexTest
   {
     public static bool IsRunning { get; private set; }
 
-    private readonly Pillars.Module _module;
     private Dictionary<String, Test> _index;
 
-    public static Tests FromAssembly(Pillars.Module module) =>
-      new Tests(module,
+
+    public static Tests FromAssembly() =>
+      new Tests(
         Assembly.GetCallingAssembly().GetTypes()
         .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static))
         .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() ?? x.GetCustomAttribute<ClassTestAttribute>() })
         .Where(x => x.Attribute != null)
-        .Select(x => new Test(module.AddChild(x.Attribute.GetName(x.Method)), x.Method)));
+        .Select(x => new Test(x.Method)));
 
-    public static Tests Load(Pillars.Module module, params string[] assemblyNames) => Load(module, assemblyNames.Select(x=>Assembly.Load(x)));
+    public static Tests Load(params string[] assemblyNames) => Load(assemblyNames.Select(x => Assembly.Load(x)));
 
     private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetExecutingAssembly().Traverse(x => x.GetReferencedAssemblies().Select(y => Assembly.Load(y)));
-    private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetExecutingAssembly().GetReferencedAssemblies().Where(x=>assemblyNames.Contains(x.Name)).Select(x=>Assembly.Load(x));
+    private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetExecutingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
-    public static Tests Load(Pillars.Module module, IEnumerable<Assembly> assemblies) =>
-      new Tests(module,
+    public static Tests Load(IEnumerable<Assembly> assemblies) =>
+      new Tests(
         assemblies.SelectMany(y => y.GetTypes()
           .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static))
           .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() })
           .Where(x => x.Attribute != null)
-          .Select(x => new Test(module.AddChild(x.Attribute.GetName(x.Method)), x.Method))));
+          .Select(x => new Test(x.Method))));
 
 
-    public Tests(Pillars.Module module) => _module = module ?? throw new ArgumentNullException(nameof(module));
-    public Tests(Pillars.Module module, IEnumerable<Test> source) : base(source)
+    public Tests(IEnumerable<Test> source) : base(source)
     {
-      _module = module ?? throw new ArgumentNullException(nameof(module));
       foreach (var test in this)
         test.PopulateDependencies(this);
     }
@@ -52,17 +50,12 @@ namespace Spin.FlexTest
     public void Run(Func<Test, bool> predicate = null)
     {
       IsRunning = true;
-      Stopwatch sw = new Stopwatch();
-      sw.Start();
-      int count = 0;
-      foreach (var test in this.OrderByDependency().Where(predicate ?? (x => true)))
+
+      Log.Capture("Tests", () =>
       {
-        _module.Log.Write(LogSeverity.Trace, "Executing '{0}'", test.Name);
-        test.Run(DependencyCache);
-        count++;
-      }
-      sw.Stop();
-      _module.Log.Write($"{count} tests completed in {sw.Elapsed}");
+        foreach (var test in this.OrderByDependency().Where(predicate ?? (x => true)))
+          test.Run(DependencyCache);
+      });
 
       DependencyCache.Clear();
       IsRunning = false;
@@ -98,10 +91,9 @@ namespace Spin.FlexTest
       var cache = new HashSet<Type>()
       {
         typeof(Test),
-        typeof(Pillars.Module)
       };
 
-      foreach(var dependency in DependencyCache.Keys)
+      foreach (var dependency in DependencyCache.Keys)
         cache.Add(dependency);
 
       var tests = new List<Test>(this);

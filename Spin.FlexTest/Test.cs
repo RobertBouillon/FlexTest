@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Linq;
-using Spin.Pillars;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
@@ -34,7 +33,6 @@ namespace Spin.FlexTest
     //public List<Test> Dependencies { get; } = new List<Test>();
     public Stopwatch Stopwatch { get; }
     public List<Milestone> Milestones { get; } = new List<Milestone>();
-    public Pillars.Module Module { get; }
     public TimeSpan Elapsed { get; private set; }
     public Boolean Succeeded { get; private set; } = true;
     public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
@@ -43,17 +41,14 @@ namespace Spin.FlexTest
     public Type ReturnsObject { get; }
     public List<Test> DependentTests { get; internal set; }
 
-    public Test(Pillars.Module module, MethodInfo target)
+    public Test(MethodInfo target)
     {
       #region Validation
       if (target == null)
         throw new ArgumentNullException(nameof(target));
-      if (module == null)
-        throw new ArgumentNullException(nameof(module));
       #endregion
 
       Name = target.GetCustomAttribute<TestAttribute>().GetName(target);
-      Module = module;
       Target = target;
       Stopwatch = new Stopwatch();
       ReturnsObject = target.ReturnType;
@@ -81,7 +76,7 @@ namespace Spin.FlexTest
     public void SetMetric(string name, object value, string displayValue = null)
     {
       if (!Metrics.TryGetValue(name, out var metric))
-        Metrics.Add(name, metric = new TestMetric(name, value, displayValue));
+        Metrics.Add(name, new TestMetric(name, value, displayValue));
       else
       {
         metric.Value = value;
@@ -93,35 +88,25 @@ namespace Spin.FlexTest
     public void Run(Dictionary<Type, Object> objectCache)
     {
       var args = Target.GetParameters().Select(x => GetDependency(x, objectCache)).ToArray();
-      Stopwatch.Start();
+      var test = Log.StartOperation(Name);
+
       try
       {
         var result = Target.Invoke(null, args);
-        Stopwatch.Stop();
         if (Succeeded &= String.IsNullOrEmpty(FailureReason))
           objectCache[ReturnsObject] = result;
+        test.Finish(Metrics.Select(x => new Tag(x.Key, x.Value.DisplayValue)));
       }
       catch (TargetInvocationException ex)
       {
-        Stopwatch.Stop();
         Succeeded = false;
-        Module.Log.Write(ex.InnerException);
+        test.Failed(Metrics.Select(x => new Tag(x.Key, x.Value.DisplayValue)).Cast<Object>().Concat(ex.InnerException).ToArray());
         FailureReason = ex.InnerException.Message;
       }
-      Elapsed = Stopwatch.Elapsed;
-
-      Module.Log.Write("Test completed in {1}", Name, Stopwatch.Elapsed);
-      foreach (var meter in Metrics)
-        Module.Log.Write("{0,-12}: {1}", meter.Key, meter.Value.DisplayValue);
+      Elapsed = test.Elapsed;
     }
 
-    public void Fail(string reason = null)
-    {
-      Module.Log.Write(LogSeverity.Error, reason ??= $"'{Name}' did not operate as expected");
-      Succeeded = false;
-      FailureReason = reason;
-      throw new Exception(reason);
-    }
+    public void Fail(string reason = null) => throw new Exception(reason);
 
     public void Assert(bool condition, string reason = null)
     {
@@ -148,8 +133,6 @@ namespace Spin.FlexTest
     {
       if (parameter.ParameterType == typeof(Test))
         return this;
-      else if (parameter.ParameterType == typeof(Pillars.Module))
-        return Module;
       else if (objectCache.TryGetValue(parameter.ParameterType, out var dependency))
         return dependency;
       else
