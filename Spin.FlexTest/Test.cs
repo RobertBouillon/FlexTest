@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.IO;
 using Spin.Pillars.Logging;
+using Spin.Pillars.Logging.Data;
 
 namespace Spin.FlexTest
 {
@@ -88,7 +89,7 @@ namespace Spin.FlexTest
     public void Run(Dictionary<Type, Object> objectCache)
     {
       var args = Target.GetParameters().Select(x => GetDependency(x, objectCache)).ToArray();
-      var test = Log.StartOperation(Name);
+      var test = Log.Start(Name);
 
       try
       {

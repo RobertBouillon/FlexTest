@@ -11,6 +11,7 @@ namespace Spin.FlexTest
   public class Tests : List<Test>
   {
     public static bool IsRunning { get; private set; }
+    public LogScope Log { get; }
 
     private Dictionary<String, Test> _index;
 
@@ -39,6 +40,7 @@ namespace Spin.FlexTest
 
     public Tests(IEnumerable<Test> source) : base(source)
     {
+      Log = Pillars.Logging.Log.Start("Tests");
       foreach (var test in this)
         test.PopulateDependencies(this);
     }
