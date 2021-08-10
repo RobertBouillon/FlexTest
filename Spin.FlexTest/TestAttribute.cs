@@ -22,6 +22,12 @@ namespace Spin.FlexTest
       Name = name;
     }
 
-    public virtual string GetName(MethodInfo method) => Name ?? method.DeclaringType.Name + ":" + _nameParser.Match(method.Name).Groups["name"].Value;
+    public virtual string GetName(MethodInfo method)
+    {
+      var name = _nameParser.Match(method.Name).Groups["name"].Value;
+      return name == "Test" ?
+        Name ?? method.DeclaringType.Name :
+      Name ?? method.DeclaringType.Name + ":" + name;
+    }
   }
 }
