@@ -29,6 +29,7 @@ namespace Spin.FlexTest
     private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetExecutingAssembly().Traverse(x => x.GetReferencedAssemblies().Select(y => Assembly.Load(y)));
     private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetExecutingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
+    public static Tests Load(params Assembly[] assemblies) => Load((IEnumerable<Assembly>)assemblies);
     public static Tests Load(IEnumerable<Assembly> assemblies) =>
       new Tests(
         assemblies.SelectMany(y => y.GetTypes()
