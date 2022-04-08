@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -25,9 +26,10 @@ namespace Spin.FlexTest
     public virtual string GetName(MethodInfo method)
     {
       var name = _nameParser.Match(method.Name).Groups["name"].Value;
+      var parent = method.DeclaringType.GetCustomAttribute<DescriptionAttribute>()?.Description ?? method.DeclaringType.Name;
       return name == "Test" ?
-        Name ?? method.DeclaringType.Name :
-      Name ?? method.DeclaringType.Name + ":" + name;
+        Name ?? parent :
+      Name ?? parent + ":" + name;
     }
   }
 }

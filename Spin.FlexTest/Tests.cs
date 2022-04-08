@@ -5,6 +5,7 @@ using System.Linq;
 using Spin.Pillars;
 using System.Reflection;
 using Spin.Pillars.Logging;
+using System.Threading.Tasks;
 
 namespace Spin.FlexTest
 {
@@ -15,11 +16,10 @@ namespace Spin.FlexTest
 
     private Dictionary<String, Test> _index;
 
-
     public static Tests FromAssembly() =>
       new Tests(
         Assembly.GetCallingAssembly().GetTypes()
-        .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static))
+        .SelectMany(x => x.GetMethods(BindingFlags.Public))
         .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() ?? x.GetCustomAttribute<ClassTestAttribute>() })
         .Where(x => x.Attribute != null)
         .Select(x => new Test(x.Method)));
@@ -31,24 +31,33 @@ namespace Spin.FlexTest
 
     public static Tests Load(params Assembly[] assemblies) => Load((IEnumerable<Assembly>)assemblies);
     public static Tests Load(IEnumerable<Assembly> assemblies) =>
-      new Tests(
-        assemblies.SelectMany(y => y.GetTypes()
-          .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static))
+      new Tests(assemblies.SelectMany(
+        y => y.GetTypes()
+          .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
           .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() })
           .Where(x => x.Attribute != null)
           .Select(x => new Test(x.Method))));
 
+    //{
+    //  var foo = assemblies.SelectMany(
+    //    y => y.GetTypes()
+    //      .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
+    //      .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() })
+    //      .Where(x => x.Attribute != null)
+    //      .Select(x => new Test(x.Method)))
+    //      .ToList();
+
+    //  throw new NotImplementedException();
+    //}
 
     public Tests(IEnumerable<Test> source) : base(source)
     {
       Log = Pillars.Logging.Log.Start("Tests");
-      foreach (var test in this)
-        test.PopulateDependencies(this);
     }
 
-    public Dictionary<Type, Object> DependencyCache { get; } = new Dictionary<Type, object>();
+    //public Dictionary<Type, Object> DependencyCache { get; } = new Dictionary<Type, object>();
 
-    public void AddDependency(object dependency) => DependencyCache.Add(dependency.GetType(), dependency);
+    //public void AddDependency(object dependency) => DependencyCache.Add(dependency.GetType(), dependency);
 
     public void Run(Func<Test, bool> predicate = null)
     {
@@ -56,11 +65,12 @@ namespace Spin.FlexTest
 
       Log.Capture("Tests", () =>
       {
-        foreach (var test in this.OrderByDependency().Where(predicate ?? (x => true)))
-          test.Run(DependencyCache);
+        foreach (var test in this.Where(predicate ?? (x => true)))
+          test.Execute();
+        //Parallel.ForEach(this.Where(predicate ?? (x => true)), test => test.Execute());
       });
 
-      DependencyCache.Clear();
+      //DependencyCache.Clear();
       IsRunning = false;
     }
 
@@ -87,42 +97,6 @@ namespace Spin.FlexTest
 
       foreach (var test in this)
         _index.Add(test.Name, test);
-    }
-
-    public IEnumerable<Test> OrderByDependency()
-    {
-      var cache = new HashSet<Type>()
-      {
-        typeof(Test),
-      };
-
-      foreach (var dependency in DependencyCache.Keys)
-        cache.Add(dependency);
-
-      var tests = new List<Test>(this);
-      var completed = new HashSet<Test>();
-
-      bool any = false;
-      do
-      {
-        any = false;
-        foreach (var test in tests.CopyOf().Where(x => x.HasDependencies(cache, completed)))
-        {
-          if (test.ReturnsObject != null)
-            cache.Add(test.ReturnsObject);
-          yield return test;
-          tests.Remove(test);
-          completed.Add(test);
-          if (!any)
-            any = true;
-        }
-      } while (any);
-
-      if (tests.Count > 0)
-      {
-        var missing = String.Join(", ", tests.SelectMany(x => x.GetMissingDependencies(cache)).Distinct().Select(x => x.FullName));
-        throw new Exception($"Objects are required but were not provided by test methods: {missing}");
-      }
     }
   }
 }
