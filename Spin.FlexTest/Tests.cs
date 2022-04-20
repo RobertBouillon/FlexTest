@@ -16,27 +16,28 @@ namespace Spin.FlexTest
 
     private Dictionary<String, Test> _index;
 
-    public static Tests FromAssembly() =>
+    public static Tests FromAssembly(LogScope log) =>
       new Tests(
         Assembly.GetCallingAssembly().GetTypes()
         .SelectMany(x => x.GetMethods(BindingFlags.Public))
         .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() ?? x.GetCustomAttribute<ClassTestAttribute>() })
         .Where(x => x.Attribute != null)
-        .Select(x => new Test(x.Method)));
+        .Select(x => Test.Create(x.Method, log)));
 
-    public static Tests Load(params string[] assemblyNames) => Load(assemblyNames.Select(x => Assembly.Load(x)));
+    public static Tests Load(LogScope log, params string[] assemblyNames) => Load(log, assemblyNames.Select(x => Assembly.Load(x)));
+    public static Tests Load(params string[] assemblyNames) => Load(Pillars.Logging.Log.DefaultScope, assemblyNames.Select(x => Assembly.Load(x)));
 
     private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetExecutingAssembly().Traverse(x => x.GetReferencedAssemblies().Select(y => Assembly.Load(y)));
     private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetExecutingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
-    public static Tests Load(params Assembly[] assemblies) => Load((IEnumerable<Assembly>)assemblies);
-    public static Tests Load(IEnumerable<Assembly> assemblies) =>
+    public static Tests Load(LogScope log, params Assembly[] assemblies) => Load(log, (IEnumerable<Assembly>)assemblies);
+    public static Tests Load(LogScope log, IEnumerable<Assembly> assemblies) =>
       new Tests(assemblies.SelectMany(
         y => y.GetTypes()
           .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
           .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() })
           .Where(x => x.Attribute != null)
-          .Select(x => new Test(x.Method))));
+          .Select(x => Test.Create(x.Method, log))));
 
     //{
     //  var foo = assemblies.SelectMany(

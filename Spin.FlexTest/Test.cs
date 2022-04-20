@@ -9,30 +9,47 @@ using Newtonsoft.Json;
 using System.IO;
 using Spin.Pillars.Logging;
 using Spin.Pillars.Logging.Data;
+using static System.FluentTry;
 
 namespace Spin.FlexTest
 {
   public class Test
   {
-    public string Name { get; set; }
-    public MethodInfo Target { get; }
-    public Stopwatch Stopwatch { get; }
-    public TimeSpan Elapsed { get; private set; }
-    public Boolean Succeeded { get; private set; } = true;
-    public string Error { get; private set; }
-
-    public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
-
-    public Test(MethodInfo target)
+    public static Test Create(MethodInfo target, LogScope parentLog)
     {
       #region Validation
       if (target == null)
         throw new ArgumentNullException(nameof(target));
+      if (parentLog is null)
+        throw new ArgumentNullException(nameof(parentLog));
       #endregion
 
-      Name = target.GetCustomAttribute<TestAttribute>().GetName(target);
+      var attribute = target.GetCustomAttribute<TestAttribute>();
+
+      if (attribute.Type == TestType.Performance)
+        return new PerformanceTest(attribute, target, parentLog);
+      else
+        return new Test(attribute, target, parentLog);
+    }
+
+    public string Name { get; set; }
+    public MethodInfo Target { get; }
+    public Stopwatch Stopwatch { get; }
+    public TimeSpan Elapsed { get; protected set; }
+    public bool Succeeded { get; protected set; } = true;
+    public string Error { get; protected set; }
+    public TestType Type { get; }
+    public LogScope Log { get; }
+
+    public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
+
+    protected Test(TestAttribute attribute, MethodInfo target, LogScope parentLog)
+    {
+      Name = attribute.GetName(target);
+      Type = attribute.Type;
       Target = target;
       Stopwatch = new Stopwatch();
+      Log = parentLog.AddScope(Name);
 
       if (target.GetParameters().Count() > 0)
         throw new Exception($"{target.Name} cannot have parameters");
@@ -60,23 +77,20 @@ namespace Spin.FlexTest
         Execute(() => Target.Invoke(Activator.CreateInstance(Target.ReflectedType), Array.Empty<Object>()));
     }
 
-    private void Execute(Action action)
+    protected virtual void Execute(Action action)
     {
-      Stopwatch sw = new Stopwatch();
-      sw.Start();
+      Log.Start();
       try
       {
         action();
-        Succeeded = true;
+        Elapsed = Log.Finish().Elapsed;
       }
       catch (TargetInvocationException ex)
       {
+        Elapsed = Log.Failed(ex.InnerException).Elapsed;
         Succeeded = false;
         Error = ex.InnerException.Message;
-        Log.DefaultScope.Write("{Name} failed", Name);
       }
-      sw.Stop();
-      Elapsed = sw.Elapsed;
     }
 
     public void Fail(string reason = null) => throw new Exception(reason);
@@ -92,7 +106,7 @@ namespace Spin.FlexTest
       if (validator == null)
         validator = x => true;
       bool failed = false;
-      FluentTry.Try(action).Catch(x => failed = validator(x));
+      Try(action).Catch(x => failed = validator(x));
       if (!failed)
         Fail($"{description} did not fail as expected");
     }

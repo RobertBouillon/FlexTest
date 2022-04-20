@@ -11,7 +11,8 @@ namespace Spin.FlexTest
   public class TestAttribute : Attribute
   {
     private static Regex _nameParser = new Regex(@"(Test)?(?<name>.+)", RegexOptions.Compiled);
-    private string Name { get; }
+    private string Name { get; }  //Use GetName instead
+    public TestType Type { get; set; }
 
     public TestAttribute() { }
     public TestAttribute(string name)
@@ -25,6 +26,7 @@ namespace Spin.FlexTest
 
     public virtual string GetName(MethodInfo method)
     {
+      
       var name = _nameParser.Match(method.Name).Groups["name"].Value;
       var parent = method.DeclaringType.GetCustomAttribute<DescriptionAttribute>()?.Description ?? method.DeclaringType.Name;
       return name == "Test" ?
