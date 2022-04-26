@@ -74,7 +74,12 @@ namespace Spin.FlexTest
         else
           throw new Exception($"{Target.ReflectedType} is not a Test Fixture");
       else
-        Execute(() => Target.Invoke(Activator.CreateInstance(Target.ReflectedType), Array.Empty<Object>()));
+      {
+        var fixture = Activator.CreateInstance(Target.ReflectedType) as TestFixture;
+        fixture.Log = Log.AddScope(fixture.Name);
+
+        Execute(() => Target.Invoke(fixture, Array.Empty<Object>()));
+      }
     }
 
     protected virtual void Execute(Action action)

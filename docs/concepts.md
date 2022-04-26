@@ -11,6 +11,17 @@
 - Test classes are contained within the assemblies and classes they test, excluded by preprocessor directive. This gives tests access to private and internal members.
 
 
+# Use-Cases
+
+## Debug test with output (incomplete)
+As an engineer, I want to view the log / console output of a test as it runs, so I can:
+1. Monitor progress and better debug the test as it runs.
+2. Better identify the nature of a bug if the test fails
+
+
+
+
+
 # Test Types
 
 ## Unit Tests
