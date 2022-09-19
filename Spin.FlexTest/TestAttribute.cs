@@ -12,7 +12,7 @@ namespace Spin.FlexTest
   {
     private static Regex _nameParser = new Regex(@"(Test)?(?<name>.+)", RegexOptions.Compiled);
     private string Name { get; }  //Use GetName instead
-    public TestType Type { get; set; }
+    public TestType Type { get; set; } = TestType.Unit;
 
     public TestAttribute() { }
     public TestAttribute(string name)

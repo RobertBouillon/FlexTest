@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spin.FlexTest
 {
-  public abstract class TestFixture
+  public abstract class TestFixture : IDisposable
   {
     public static bool IsTestFixture(Type type)
     {
@@ -22,17 +22,19 @@ namespace Spin.FlexTest
       return false;
     }
 
+    public virtual string Name => GetType().Name;
+    public LogScope Log { get; set; }
     public virtual bool CanReuse => false;
 
-    public void Fail(string reason = null) => throw new Exception(reason);
+    protected void Fail(string reason = null) => throw new Exception(reason);
 
-    public void Assert(bool condition, string reason = null)
+    protected void Assert(bool condition, string reason = null)
     {
       if (!condition)
         Fail(reason);
     }
 
-    public void ShouldFail(Action action, Func<Exception, bool> validator = null, string description = null)
+    protected void ShouldFail(Action action, Func<Exception, bool> validator = null, string description = null)
     {
       if (validator == null)
         validator = x => true;
@@ -41,5 +43,9 @@ namespace Spin.FlexTest
       if (!failed)
         Fail($"{description} did not fail as expected");
     }
+
+    public virtual void Initialize() { }
+    public virtual void Cleanup() { }
+    public virtual void Dispose() { }
   }
 }

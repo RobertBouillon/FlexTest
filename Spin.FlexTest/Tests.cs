@@ -26,9 +26,26 @@ namespace Spin.FlexTest
 
     public static Tests Load(LogScope log, params string[] assemblyNames) => Load(log, assemblyNames.Select(x => Assembly.Load(x)));
     public static Tests Load(params string[] assemblyNames) => Load(Pillars.Logging.Log.DefaultScope, assemblyNames.Select(x => Assembly.Load(x)));
+    public static void Execute(params string[] filter)
+    {
+      var testNames = new HashSet<string>(filter).Distinct();
+      Execute(x => testNames.Contains(x.Name));
+    }
 
-    private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetExecutingAssembly().Traverse(x => x.GetReferencedAssemblies().Select(y => Assembly.Load(y)));
-    private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetExecutingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
+    public static void Execute(Func<Test, bool> predicate = null)
+    {
+      var tests = Load(Pillars.Logging.Log.DefaultScope, GetTestableAssemblies());
+      tests.Run(predicate);
+    }
+
+    private static IEnumerable<Assembly> GetTestableAssemblies()
+    {
+      var flextest = typeof(Tests).Assembly.GetName().FullName;
+      return GetReferencedAssemblies().Where(x => x.GetReferencedAssemblies().Any(x => x.FullName == flextest));
+    }
+
+    private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(y => Assembly.Load(y)).Concat(Assembly.GetEntryAssembly());
+    private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetCallingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
     public static Tests Load(LogScope log, params Assembly[] assemblies) => Load(log, (IEnumerable<Assembly>)assemblies);
     public static Tests Load(LogScope log, IEnumerable<Assembly> assemblies) =>
