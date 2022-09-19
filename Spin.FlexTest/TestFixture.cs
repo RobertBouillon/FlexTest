@@ -11,6 +11,17 @@ namespace Spin.FlexTest
 {
   public abstract class TestFixture
   {
+    public static bool IsTestFixture(Type type)
+    {
+      do
+      {
+        if (type.BaseType == typeof(TestFixture))
+          return true;
+        type = type.BaseType;
+      } while (type != null);
+      return false;
+    }
+
     public virtual bool CanReuse => false;
 
     public void Fail(string reason = null) => throw new Exception(reason);

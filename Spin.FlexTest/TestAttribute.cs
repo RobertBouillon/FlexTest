@@ -26,12 +26,16 @@ namespace Spin.FlexTest
 
     public virtual string GetName(MethodInfo method)
     {
-      
       var name = _nameParser.Match(method.Name).Groups["name"].Value;
-      var parent = method.DeclaringType.GetCustomAttribute<DescriptionAttribute>()?.Description ?? method.DeclaringType.Name;
+
+      var parent = method.DeclaringType;
+      if (TestFixture.IsTestFixture(method.DeclaringType) && method.DeclaringType.DeclaringType is not null)
+        parent = method.DeclaringType.DeclaringType;
+      
+      var parentName = parent.GetCustomAttribute<DescriptionAttribute>()?.Description ?? parent.Name;
       return name == "Test" ?
-        Name ?? parent :
-      Name ?? parent + ":" + name;
+        Name ?? parentName :
+      Name ?? parentName + ":" + name;
     }
   }
 }
