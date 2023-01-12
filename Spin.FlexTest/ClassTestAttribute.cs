@@ -5,26 +5,25 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Spin.FlexTest
+namespace Spin.FlexTest;
+
+[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
+public class ClassTestAttribute : TestAttribute
 {
-  [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-  public class ClassTestAttribute : TestAttribute
+  public string Name { get; set; }
+
+  public ClassTestAttribute(){}
+  public ClassTestAttribute(string name) => Name = name ?? throw new ArgumentNullException(nameof(name));
+
+  private static Regex _parser = new Regex(@"Test([\w\d_]+)", RegexOptions.Compiled);
+  public override string GetName(MethodInfo method)
   {
-    public string Name { get; set; }
+    var ns = method.DeclaringType.Namespace;
+    var classname = method.DeclaringType.Name;
+    var name = Name ?? _parser.Match(method.Name).Groups[1].Value;
 
-    public ClassTestAttribute(){}
-    public ClassTestAttribute(string name) => Name = name ?? throw new ArgumentNullException(nameof(name));
-
-    private static Regex _parser = new Regex(@"Test([\w\d_]+)", RegexOptions.Compiled);
-    public override string GetName(MethodInfo method)
-    {
-      var ns = method.DeclaringType.Namespace;
-      var classname = method.DeclaringType.Name;
-      var name = Name ?? _parser.Match(method.Name).Groups[1].Value;
-
-      return String.IsNullOrWhiteSpace(name)?
-        $"{ns}.{classname}":
-        $"{ns}.{classname}:{name}";
-    }
+    return String.IsNullOrWhiteSpace(name)?
+      $"{ns}.{classname}":
+      $"{ns}.{classname}:{name}";
   }
 }

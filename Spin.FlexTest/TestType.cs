@@ -4,15 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spin.FlexTest
+namespace Spin.FlexTest;
+
+public enum TestType
 {
-  public enum TestType
-  {
-    Performance,
-    Unit,
-    Functional,
-    Integration,
-    Stress,
-    Load
-  }
+  Performance,
+  Unit,
+  Functional,
+  Integration,
+  Stress,
+  Load
 }
