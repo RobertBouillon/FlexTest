@@ -26,9 +26,9 @@ public abstract class TestFixture : IDisposable
   public LogScope Log { get; set; }
   public virtual bool CanReuse => false;
 
-  protected void Fail(string reason = null) => throw new Exception(reason);
+  protected static void Fail(string reason = null) => throw new Exception(reason);
 
-  protected void Assert(bool condition, string reason = null)
+  protected static void Assert(bool condition, string reason = null)
   {
     if (!condition)
       Fail(reason);
