@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using Spin.Pillars;
 using System.Reflection;
 using Spin.Pillars.Logging;
-using System.Threading.Tasks;
 
 namespace Spin.FlexTest;
 
@@ -16,16 +13,26 @@ public class Tests : List<Test>
 
   private Dictionary<String, Test> _index;
 
-  public static Tests FromAssembly(LogScope log) =>
-    new Tests(
-      Assembly.GetCallingAssembly().GetTypes()
-      .SelectMany(x => x.GetMethods(BindingFlags.Public))
-      .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() ?? x.GetCustomAttribute<ClassTestAttribute>() })
-      .Where(x => x.Attribute != null)
-      .Select(x => Test.Create(x.Method, log)));
-
+  public static Tests FromAssembly(LogScope log) => Load(log, Assembly.GetCallingAssembly());
   public static Tests Load(LogScope log, params string[] assemblyNames) => Load(log, assemblyNames.Select(x => Assembly.Load(x)));
+  public static Tests Load(LogScope log, params Assembly[] assemblies) => Load(log, (IEnumerable<Assembly>)assemblies);
   public static Tests Load(params string[] assemblyNames) => Load(Pillars.Logging.Log.DefaultScope, assemblyNames.Select(x => Assembly.Load(x)));
+  public static Tests Load(LogScope log, IEnumerable<Assembly> assemblies) //=> new(Test.Gather(log, assemblies));
+  {
+    var fixtureTests = assemblies
+      .SelectMany(TestFixture.Gather)
+      .Select(Activator.CreateInstance)
+      .Cast<TestFixture>()
+      .SelectMany(x => x.GatherTests());
+
+    var staticTests = assemblies
+      .SelectMany(x => x.GetTypes())
+      .Where(x => !TestFixture.IsTestFixture(x))
+      .SelectMany(x => Test.Gather(log, x));
+
+    return new Tests(fixtureTests.Concat(staticTests));
+  }
+
   public static void Execute(params string[] filter)
   {
     var testNames = new HashSet<string>(filter).Distinct();
@@ -47,35 +54,8 @@ public class Tests : List<Test>
   private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(y => Assembly.Load(y)).Concat(Assembly.GetEntryAssembly());
   private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetCallingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
-  public static Tests Load(LogScope log, params Assembly[] assemblies) => Load(log, (IEnumerable<Assembly>)assemblies);
-  public static Tests Load(LogScope log, IEnumerable<Assembly> assemblies) =>
-    new Tests(assemblies.SelectMany(
-      y => y.GetTypes()
-        .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
-        .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() })
-        .Where(x => x.Attribute != null)
-        .Select(x => Test.Create(x.Method, log))));
-
-  //{
-  //  var foo = assemblies.SelectMany(
-  //    y => y.GetTypes()
-  //      .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
-  //      .Select(x => new { Method = x, Attribute = x.GetCustomAttribute<TestAttribute>() })
-  //      .Where(x => x.Attribute != null)
-  //      .Select(x => new Test(x.Method)))
-  //      .ToList();
-
-  //  throw new NotImplementedException();
-  //}
-
-  public Tests(IEnumerable<Test> source) : base(source)
-  {
+  public Tests(IEnumerable<Test> source) : base(source) =>
     Log = Pillars.Logging.Log.Start("Tests");
-  }
-
-  //public Dictionary<Type, Object> DependencyCache { get; } = new Dictionary<Type, object>();
-
-  //public void AddDependency(object dependency) => DependencyCache.Add(dependency.GetType(), dependency);
 
   public void Run(Func<Test, bool> predicate = null)
   {
@@ -85,10 +65,8 @@ public class Tests : List<Test>
     {
       foreach (var test in this.Where(predicate ?? (x => true)))
         test.Execute();
-      //Parallel.ForEach(this.Where(predicate ?? (x => true)), test => test.Execute());
     });
 
-    //DependencyCache.Clear();
     IsRunning = false;
   }
 
@@ -110,7 +88,7 @@ public class Tests : List<Test>
     if (this.Select(x => x.Name).Distinct().Count() < Count)
     {
       var duplicate = this.GroupBy(x => x.Name).Where(x => x.Count() > 1).First();
-      throw new Exception($"Duplicate test name '{duplicate.Key}' for methods: {String.Join(",", duplicate.Select(x => x.Target.Name))}");
+      throw new Exception($"Duplicate test name '{duplicate.Key}' for methods: {String.Join(",", duplicate.Select(x => x.Name))}");
     }
 
     foreach (var test in this)

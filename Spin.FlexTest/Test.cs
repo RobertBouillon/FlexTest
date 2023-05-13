@@ -1,58 +1,49 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Linq;
-using System.Text.RegularExpressions;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
-using System.IO;
 using Spin.Pillars.Logging;
-using Spin.Pillars.Logging.Data;
 using static System.FluentTry;
 
 namespace Spin.FlexTest;
 
 public class Test
 {
-  public static Test Create(MethodInfo target, LogScope parentLog)
-  {
-    #region Validation
-    if (target == null)
-      throw new ArgumentNullException(nameof(target));
-    if (parentLog is null)
-      throw new ArgumentNullException(nameof(parentLog));
-    #endregion
+  public static IEnumerable<Test> Gather(LogScope log, params Type[] types) => Gather(log, types.Cast<Type>());
+  public static IEnumerable<Test> Gather(LogScope log, IEnumerable<Type> types) => types
+    .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
+    .Select(x => (TestAttribute: x.GetCustomAttribute<TestAttribute>(), Method: x))
+    .Where(x => x.TestAttribute is not null && x.Method.ReturnType is null)
+    .Select(x => new Test(x.TestAttribute, x.Method, log));
 
-    var attribute = target.GetCustomAttribute<TestAttribute>();
+  public static IEnumerable<Test> Gather(LogScope log, params Assembly[] assemblies) => Gather(log, (IEnumerable<Assembly>)assemblies);
+  public static IEnumerable<Test> Gather(LogScope log, IEnumerable<Assembly> assemblies) => Gather(log, assemblies.SelectMany(x => x.GetTypes()));
 
-    if (attribute.Type == TestType.Performance)
-      return new PerformanceTest(attribute, target, parentLog);
-    else
-      return new Test(attribute, target, parentLog);
-  }
-
+  public TestFixture Fixture { get; set; }
   public string Name { get; set; }
-  public MethodInfo Target { get; }
-  public Stopwatch Stopwatch { get; }
+  public Action Action { get; }
   public TimeSpan Elapsed { get; protected set; }
   public bool Succeeded { get; protected set; } = true;
   public string Error { get; protected set; }
-  public TestType Type { get; }
   public LogScope Log { get; }
 
   public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
 
-  protected Test(TestAttribute attribute, MethodInfo target, LogScope parentLog)
+  internal Test(TestAttribute attribute, MethodInfo target, LogScope parentLog)
   {
     Name = attribute.GetName(target);
-    Type = attribute.Type;
-    Target = target;
-    Stopwatch = new Stopwatch();
+    Action = () => target.Invoke(null, Array.Empty<Object>());
     Log = parentLog.AddScope(Name);
 
     if (target.GetParameters().Count() > 0)
       throw new Exception($"{target.Name} cannot have parameters");
+  }
+
+  internal Test(string name, Action action, LogScope parentLog)
+  {
+    Name = name;
+    Action = action;
+    Log = parentLog.AddScope(Name);
   }
 
   public void SetMetric(string name, object value, string displayValue = null)
@@ -68,18 +59,12 @@ public class Test
 
   public void Execute()
   {
-    if (!typeof(TestFixture).IsAssignableFrom(Target.ReflectedType))
-      if (Target.IsStatic)
-        Execute(() => Target.Invoke(null, Array.Empty<Object>()));
-      else
-        throw new Exception($"{Target.ReflectedType} is not a Test Fixture");
-    else
-    {
-      var fixture = Activator.CreateInstance(Target.ReflectedType) as TestFixture;
-      fixture.Log = Log.AddScope(fixture.Name);
+    if (Fixture is not null)
+      Fixture.ExecutingTest = this;
 
-      Execute(() => Target.Invoke(fixture, Array.Empty<Object>()));
-    }
+    Fixture.InitializeMethod();
+    Action();
+    Fixture.ExecutingTest = null;
   }
 
   protected virtual void Execute(Action action)
@@ -98,7 +83,11 @@ public class Test
     }
   }
 
-  public void Fail(string reason = null) => throw new Exception(reason);
+  public void Fail(string reason = null)
+  {
+    Succeeded = false;
+    Error = reason;
+  }
 
   public void Assert(bool condition, string reason = null)
   {

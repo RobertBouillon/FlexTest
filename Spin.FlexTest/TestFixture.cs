@@ -1,16 +1,20 @@
 ﻿using Spin.Pillars.Logging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Spin.FlexTest;
 
 public abstract class TestFixture : IDisposable
 {
+  public Test ExecutingTest { get; protected internal set; }
+
+  public static IEnumerable<Type> Gather(Assembly assembly) => assembly
+    .GetTypes()
+    .Where(IsTestFixture)
+    .Where(x => !x.IsAbstract);
+
   public static bool IsTestFixture(Type type)
   {
     do
@@ -26,9 +30,9 @@ public abstract class TestFixture : IDisposable
   public LogScope Log { get; set; }
   public virtual bool CanReuse => false;
 
-  protected static void Fail(string reason = null) => throw new Exception(reason);
+  protected void Fail(string reason = null) => ExecutingTest.Fail(reason);
 
-  protected static void Assert(bool condition, string reason = null)
+  protected void Assert(bool condition, string reason = null)
   {
     if (!condition)
       Fail(reason);
@@ -44,7 +48,22 @@ public abstract class TestFixture : IDisposable
       Fail($"{description} did not fail as expected");
   }
 
-  public virtual void Initialize() { }
-  public virtual void Cleanup() { }
+  protected Test CreateTest(string name, Action action) => new Test(name, action, Log);
+
+  public virtual void InitializeMethod() { }
   public virtual void Dispose() { }
+  public virtual IEnumerable<Test> GatherTests()
+  {
+    var tests = GetType()
+      .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+      .Where(x => x.ReturnType == typeof(IEnumerable<Test>) && x.GetParameters().Length == 0)
+      .SelectMany(x => (IEnumerable<Test>)x.Invoke(this, Array.Empty<Object>()))
+      .Concat(Test.Gather(Log, GetType()))
+      .ToList();
+
+    foreach (var test in tests)
+      test.Fixture = this;
+
+    return tests;
+  }
 }

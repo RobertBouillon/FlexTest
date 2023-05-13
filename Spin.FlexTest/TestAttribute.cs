@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Spin.FlexTest;
@@ -12,7 +10,6 @@ public class TestAttribute : Attribute
 {
   private static Regex _nameParser = new Regex(@"(Test)?(?<name>.+)", RegexOptions.Compiled);
   private string Name { get; }  //Use GetName instead
-  public TestType Type { get; set; } = TestType.Unit;
 
   public TestAttribute() { }
   public TestAttribute(string name)
