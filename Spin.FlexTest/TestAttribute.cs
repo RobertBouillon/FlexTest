@@ -25,9 +25,9 @@ public class TestAttribute : Attribute
   {
     var name = _nameParser.Match(method.Name).Groups["name"].Value;
 
-    var parent = method.DeclaringType;
-    if (TestFixture.IsTestFixture(method.DeclaringType) && method.DeclaringType.DeclaringType is not null)
-      parent = method.DeclaringType.DeclaringType;
+    var parent = method.ReflectedType;
+    if (TestFixture.IsTestFixture(method.ReflectedType) && method.ReflectedType.ReflectedType is not null)
+      parent = method.ReflectedType.ReflectedType;
     
     var parentName = parent.GetCustomAttribute<DescriptionAttribute>()?.Description ?? parent.Name;
     return name == "Test" ?

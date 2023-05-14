@@ -48,7 +48,7 @@ public abstract class TestFixture : IDisposable
       Fail($"{description} did not fail as expected");
   }
 
-  protected Test CreateTest(string name, Action action) => new Test(name, action, Log);
+  protected Test CreateTest(string name, Action action) => new Test($"{GetType().ReflectedType.Name}:{name}", action, Log);
 
   public virtual void InitializeMethod() { }
   public virtual void Dispose() { }
