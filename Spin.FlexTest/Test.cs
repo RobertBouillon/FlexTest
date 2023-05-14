@@ -13,7 +13,7 @@ public class Test
   public static IEnumerable<Test> Gather(LogScope log, IEnumerable<Type> types) => types
     .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
     .Select(x => (TestAttribute: x.GetCustomAttribute<TestAttribute>(), Method: x))
-    .Where(x => x.TestAttribute is not null && x.Method.ReturnType is null)
+    .Where(x => x.TestAttribute is not null && x.Method.ReturnType == typeof(void))
     .Select(x => new Test(x.TestAttribute, x.Method, log));
 
   public static IEnumerable<Test> Gather(LogScope log, params Assembly[] assemblies) => Gather(log, (IEnumerable<Assembly>)assemblies);
@@ -36,7 +36,7 @@ public class Test
     Log = parentLog.AddScope(Name);
 
     if (target.GetParameters().Count() > 0)
-      throw new Exception($"{target.Name} cannot have parameters");
+      throw new Exception($"{target.DeclaringType.FullName}.{target.Name} cannot have parameters");
   }
 
   internal Test(string name, Action action, LogScope parentLog)

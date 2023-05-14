@@ -52,11 +52,12 @@ public abstract class TestFixture : IDisposable
 
   public virtual void InitializeMethod() { }
   public virtual void Dispose() { }
-  public virtual IEnumerable<Test> GatherTests()
+  public virtual IEnumerable<Test> GatherTests(LogScope log)
   {
+    Log = log;
     var tests = GetType()
       .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-      .Where(x => x.ReturnType == typeof(IEnumerable<Test>) && x.GetParameters().Length == 0)
+      .Where(x => x.HasCustomAttribute<TestAttribute>() && x.ReturnType == typeof(IEnumerable<Test>) && x.GetParameters().Length == 0)
       .SelectMany(x => (IEnumerable<Test>)x.Invoke(this, Array.Empty<Object>()))
       .Concat(Test.Gather(Log, GetType()))
       .ToList();

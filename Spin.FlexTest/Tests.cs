@@ -23,7 +23,7 @@ public class Tests : List<Test>
       .SelectMany(TestFixture.Gather)
       .Select(Activator.CreateInstance)
       .Cast<TestFixture>()
-      .SelectMany(x => x.GatherTests());
+      .SelectMany(x => x.GatherTests(log));
 
     var staticTests = assemblies
       .SelectMany(x => x.GetTypes())
@@ -50,7 +50,7 @@ public class Tests : List<Test>
     var flextest = typeof(Tests).Assembly.GetName().FullName;
     return GetReferencedAssemblies().Where(x => x.GetReferencedAssemblies().Any(x => x.FullName == flextest));
   }
-
+  
   private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(y => Assembly.Load(y)).Concat(Assembly.GetEntryAssembly());
   private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetCallingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
