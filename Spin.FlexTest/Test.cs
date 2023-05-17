@@ -32,7 +32,7 @@ public class Test
   internal Test(TestAttribute attribute, MethodInfo target, LogScope parentLog)
   {
     Name = attribute.GetName(target);
-    Action = () => target.Invoke(null, Array.Empty<Object>());
+    Action = () => target.Invoke(Fixture, Array.Empty<Object>());
     Log = parentLog.AddScope(Name);
 
     if (target.GetParameters().Count() > 0)
@@ -57,21 +57,17 @@ public class Test
     }
   }
 
-  public void Execute()
+  public void Execute() => Execute(Action);
+
+  protected virtual void Execute(Action action)
   {
     if (Fixture is not null)
       Fixture.ExecutingTest = this;
 
-    Fixture.InitializeMethod();
-    Action();
-    Fixture.ExecutingTest = null;
-  }
-
-  protected virtual void Execute(Action action)
-  {
     Log.Start();
     try
     {
+      Fixture.InitializeMethod();
       action();
       Elapsed = Log.Finish().Elapsed;
     }
@@ -81,6 +77,9 @@ public class Test
       Succeeded = false;
       Error = ex.InnerException.Message;
     }
+
+    if (Fixture is not null)
+      Fixture.ExecutingTest = null;
   }
 
   public void Fail(string reason = null)
