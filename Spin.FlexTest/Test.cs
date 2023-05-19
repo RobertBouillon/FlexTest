@@ -67,7 +67,7 @@ public class Test
     Log.Start();
     try
     {
-      Fixture.InitializeMethod();
+      Fixture?.InitializeMethod();
       action();
       Elapsed = Log.Finish().Elapsed;
     }
