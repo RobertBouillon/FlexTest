@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FlexTest\Spin.FlexTest\Spin.FlexTest.csproj" />
+    <ProjectReference Include="..\Spin.FlexTest\Spin.FlexTest.csproj" />
   </ItemGroup>
 
 </Project>
