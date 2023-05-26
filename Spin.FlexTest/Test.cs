@@ -73,6 +73,8 @@ public class Test
     if (Fixture is not null)
       Fixture.ExecutingTest = this;
 
+    var sw = new System.Diagnostics.Stopwatch();
+    sw.Start();  //HACK: Logging duration is bugged
     Log.Start();
     try
     {
@@ -89,6 +91,7 @@ public class Test
 
     if (Fixture is not null)
       Fixture.ExecutingTest = null;
+    Duration = sw.Elapsed;
   }
 
   public void Fail(string reason = null)
