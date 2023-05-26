@@ -49,7 +49,13 @@ public abstract class TestFixture : IDisposable
       Fail($"{description} did not fail as expected");
   }
 
-  protected Test CreateTest(string name, Action action) => new Test($"{GetType().ReflectedType.Name}:{name}", action, Log);
+  protected Test CreateTest(MethodInfo generator, Action action, string augment)
+  {
+    var attribute = generator.GetCustomAttribute<TestAttribute>();
+    if (attribute is null)
+      throw new Exception($"{generator} is not decordated with a Test attribute");
+    return new Test(attribute, generator, Log, augment, action);
+  }
 
   public virtual void InitializeMethod() { }
   public virtual void Dispose() { }

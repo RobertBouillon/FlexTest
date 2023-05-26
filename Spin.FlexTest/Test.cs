@@ -21,8 +21,11 @@ public class Test
 
   public TestFixture Fixture { get; set; }
   public string Name { get; set; }
+  public string TestExplorerName { get; set; }
+  public string SourceFile { get; set; }
+  public int SourceLineNumber { get; set; }
   public Action Action { get; }
-  public TimeSpan Elapsed { get; protected set; }
+  public TimeSpan Duration { get; protected set; }
   public bool Succeeded { get; protected set; } = true;
   public string Error { get; protected set; }
   public LogScope Log { get; }
@@ -32,18 +35,24 @@ public class Test
   internal Test(TestAttribute attribute, MethodInfo target, LogScope parentLog)
   {
     Name = attribute.GetName(target);
+    TestExplorerName = attribute.GetFullName(target);
     Action = () => target.Invoke(Fixture, Array.Empty<Object>());
     Log = parentLog.AddScope(Name);
+    SourceFile = attribute.File;
+    SourceLineNumber = attribute.Line;
 
     if (target.GetParameters().Count() > 0)
       throw new Exception($"{target.DeclaringType.FullName}.{target.Name} cannot have parameters");
   }
 
-  internal Test(string name, Action action, LogScope parentLog)
+  internal Test(TestAttribute attribute, MethodInfo generator, LogScope parentLog, string augment, Action action)
   {
-    Name = name;
+    Name = attribute.GetName(generator) + augment;
+    TestExplorerName = attribute.GetFullName(generator) + augment;
     Action = action;
     Log = parentLog.AddScope(Name);
+    SourceFile = attribute.File;
+    SourceLineNumber = attribute.Line;
   }
 
   public void SetMetric(string name, object value, string displayValue = null)
@@ -69,11 +78,11 @@ public class Test
     {
       Fixture?.InitializeMethod();
       action();
-      Elapsed = Log.Finish().Elapsed;
+      Duration = Log.Finish().Elapsed;
     }
     catch (TargetInvocationException ex)
     {
-      Elapsed = Log.Failed(ex.InnerException).Elapsed;
+      Duration = Log.Failed(ex.InnerException).Elapsed;
       Succeeded = false;
       Error = ex.InnerException.Message;
     }
@@ -96,8 +105,7 @@ public class Test
 
   public void ShouldFail(Action action, Func<Exception, bool> validator = null, string description = null)
   {
-    if (validator == null)
-      validator = x => true;
+    validator ??= x => true;
     bool failed = false;
     Try(action).Catch(x => failed = validator(x));
     if (!failed)
