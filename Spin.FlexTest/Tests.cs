@@ -16,7 +16,8 @@ public class Tests : List<Test>
   public static Tests FromAssembly(LogScope log) => Load(log, Assembly.GetCallingAssembly());
   public static Tests Load(LogScope log, params string[] assemblyNames) => Load(log, assemblyNames.Select(x => Assembly.Load(x)));
   public static Tests Load(LogScope log, params Assembly[] assemblies) => Load(log, (IEnumerable<Assembly>)assemblies);
-  public static Tests Load(params string[] assemblyNames) => Load(Pillars.Logging.Log.DefaultScope, assemblyNames.Select(x => Assembly.Load(x)));
+  public static Tests Load(IEnumerable<string> assemblyNames) => Load(Pillars.Logging.Log.DefaultScope, assemblyNames.Select(x => Assembly.Load(x)));
+  public static Tests Load(params string[] assemblyNames) => Load((IEnumerable<string>)assemblyNames);
   public static Tests Load(LogScope log, IEnumerable<Assembly> assemblies) //=> new(Test.Gather(log, assemblies));
   {
     var fixtureTests = assemblies
@@ -50,7 +51,7 @@ public class Tests : List<Test>
     var flextest = typeof(Tests).Assembly.GetName().FullName;
     return GetReferencedAssemblies().Where(x => x.GetReferencedAssemblies().Any(x => x.FullName == flextest));
   }
-  
+
   private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(y => Assembly.Load(y)).Concat(Assembly.GetEntryAssembly());
   private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetCallingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
 
