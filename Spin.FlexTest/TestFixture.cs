@@ -41,8 +41,7 @@ public abstract class TestFixture : IDisposable
 
   protected void ShouldFail(Action action, Func<Exception, bool> validator = null, string description = null)
   {
-    if (validator == null)
-      validator = x => true;
+    validator ??= x => true;
     bool failed = false;
     FluentTry.Try(action).Catch(x => failed = validator(x));
     if (!failed)
