@@ -25,7 +25,9 @@ namespace Spin.FlexText.TestAdapter
       var harness = Assembly.LoadFile(source).GetTypes().SingleOrDefault(x => x.BaseType == typeof(FlexTestHarness));
       if (harness is null)
         return Enumerable.Empty<Test>();
-      return (Activator.CreateInstance(harness) as FlexTestHarness).DiscoverTests();
+      var h = (Activator.CreateInstance(harness) as FlexTestHarness);
+      h.Initialize();
+      return h.DiscoverTests();
     }
 
     private TestCase CreateTestCase(Test test, string source) => new TestCase(

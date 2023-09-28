@@ -4,4 +4,5 @@ namespace Spin.FlexTest;
 public abstract class FlexTestHarness
 {
   public abstract IEnumerable<Test> DiscoverTests();
+  public abstract void Initialize();
 }
