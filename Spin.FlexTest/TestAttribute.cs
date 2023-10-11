@@ -11,6 +11,7 @@ public class TestAttribute : Attribute
 {
   private static Regex _nameParser = new Regex(@"(Test)?(?<name>.+)", RegexOptions.Compiled);
   private string Name { get; }  //Use GetName instead
+  public string Category { get; set; } = "Unit Tests";
   public string File { get; }
   public int Line { get; }
 

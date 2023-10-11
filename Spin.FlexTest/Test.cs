@@ -29,12 +29,14 @@ public class Test
   public bool Succeeded { get; protected set; } = true;
   public string Error { get; protected set; }
   public LogScope Log { get; }
+  public string Category { get; set; }
 
   public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
 
   internal Test(TestAttribute attribute, MethodInfo target, LogScope parentLog)
   {
     Name = attribute.GetName(target);
+    Category = attribute.Category;
     TestExplorerName = attribute.GetFullName(target);
     Action = () => target.Invoke(Fixture, Array.Empty<Object>());
     Log = parentLog.AddScope(Name);
@@ -48,6 +50,7 @@ public class Test
   internal Test(TestAttribute attribute, MethodInfo generator, LogScope parentLog, string augment, Action action)
   {
     Name = attribute.GetName(generator) + augment;
+    Category = attribute.Category;
     TestExplorerName = attribute.GetFullName(generator) + augment;
     Action = action;
     Log = parentLog.AddScope(Name);
@@ -78,7 +81,7 @@ public class Test
     Log.Start();
     try
     {
-      Fixture?.InitializeMethod();
+      Fixture?.OnTestStarting();
       action();
       Duration = Log.Finish().Elapsed;
     }

@@ -57,7 +57,8 @@ public abstract class TestFixture : IDisposable
     return new Test(attribute, generator, Log, augment, action);
   }
 
-  public virtual void InitializeMethod() { }
+  public virtual void OnTestStarting() { }
+  public virtual void OnTestFinished() { }
   public virtual void Dispose() { }
   public virtual IEnumerable<Test> GatherTests(LogScope log)
   {

@@ -30,13 +30,18 @@ namespace Spin.FlexText.TestAdapter
       return h.DiscoverTests();
     }
 
-    private TestCase CreateTestCase(Test test, string source) => new TestCase(
+    private TestCase CreateTestCase(Test test, string source)
+    {
+      var ret = new TestCase(
       test.TestExplorerName ?? test.Name,
       new(ExecutorUri),
       source)
-    {
-      LineNumber = test.SourceLineNumber,
-      CodeFilePath = test.SourceFile
-    };
+      {
+        LineNumber = test.SourceLineNumber,
+        CodeFilePath = test.SourceFile
+      };
+      ret.Traits.Add(new Trait(String.Empty, test.Category));
+      return ret;
+    }
   }
 }
