@@ -83,6 +83,7 @@ public class Test
     {
       Fixture?.OnTestStarting();
       action();
+      Fixture?.OnTestFinished();
       Duration = Log.Finish().Elapsed;
     }
     catch (TargetInvocationException ex)
