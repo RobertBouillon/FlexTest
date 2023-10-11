@@ -35,6 +35,24 @@ partial class Foo
 }
 ```
 
+## Test Explorer Integration
+1. Add a new MSTest Project to your solution (named e.g. "Test Explorer Test Harness")
+2. Add a reference to `Spin.FlexTest.TestAdapter`
+3. Add a reference to any libraries you want to test
+4. Add a new `TestHarness.cs` class with the code below
+5. Name all of the assemblies you want to load in the `Tests.Load` call
+
+```csharp
+using Spin.FlexTest;
+namespace Test_Explorer_Test_Harness;
+
+public class TestHarness : Spin.FlexTest.FlexTestHarness
+{
+  public override IEnumerable<Test> DiscoverTests() => Tests.Load("AssemblyToLoad");
+}
+```
+
+
 
 # Walkthrough
 
