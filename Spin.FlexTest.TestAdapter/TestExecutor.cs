@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel.Adapter;
+
 using Spin.FlexTest;
 
 namespace Spin.FlexText.TestAdapter
@@ -19,8 +20,8 @@ namespace Spin.FlexText.TestAdapter
       var tests = testCases
         .Select(x => x.Source)
         .Distinct()
-        .SelectMany(TestDiscoverer.DiscoverTests)
-        .Select(x=>(TestCase: index.GetValueOrDefault(x.TestExplorerName), Test: x))
+        .SelectMany(x => TestDiscoverer.DiscoverTests(x, true))
+        .Select(x => (TestCase: index.GetValueOrDefault(x.TestExplorerName), Test: x))
         .Where(x => x.TestCase is not null)
         .ToList();
 

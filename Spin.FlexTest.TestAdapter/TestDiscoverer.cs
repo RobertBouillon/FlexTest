@@ -20,13 +20,14 @@ namespace Spin.FlexText.TestAdapter
           discoverySink.SendTestCase(CreateTestCase(test, source));
     }
 
-    static internal IEnumerable<Test> DiscoverTests(string source)
+    static internal IEnumerable<Test> DiscoverTests(string source, bool initializeHarness = false)
     {
       var harness = Assembly.LoadFile(source).GetTypes().SingleOrDefault(x => x.BaseType == typeof(FlexTestHarness));
       if (harness is null)
         return Enumerable.Empty<Test>();
       var h = (Activator.CreateInstance(harness) as FlexTestHarness);
-      //h.Initialize();  //This invokes a LOT of overhead when all we want to do is discover
+      if(initializeHarness)
+        h.Initialize(); 
       return h.DiscoverTests();
     }
 
