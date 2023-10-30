@@ -92,6 +92,12 @@ public class Test
       Succeeded = false;
       Error = ex.InnerException.Message;
     }
+    catch (Exception ex)
+    {
+      Duration = Log.Failed(ex).Elapsed;
+      Succeeded = false;
+      Error = ex.Message;
+    }
 
     if (Fixture is not null)
       Fixture.ExecutingTest = null;

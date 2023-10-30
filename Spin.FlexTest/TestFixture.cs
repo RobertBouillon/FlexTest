@@ -34,7 +34,7 @@ public abstract class TestFixture : IDisposable
   //protected void Fail(string reason = null) => ExecutingTest.Fail(reason);
   protected void Fail(string reason = null) => throw new Exception(reason); //Stop executing the test. Find a better way do to this that isn't so noisy (e.g. Assert() should stop execution without needing if(!Assert()) return;
 
-  protected void Assert(bool condition, string reason = null)
+  protected virtual void Assert(bool condition, string reason = null)
   {
     if (!condition)
       Fail(reason);

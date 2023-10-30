@@ -26,7 +26,7 @@ namespace Spin.FlexText.TestAdapter
       if (harness is null)
         return Enumerable.Empty<Test>();
       var h = (Activator.CreateInstance(harness) as FlexTestHarness);
-      h.Initialize();
+      //h.Initialize();  //This invokes a LOT of overhead when all we want to do is discover
       return h.DiscoverTests();
     }
 
