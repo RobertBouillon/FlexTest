@@ -8,6 +8,8 @@ namespace Spin.FlexTest;
 
 public class Tests : List<Test>
 {
+  #region Static Declarations
+
   public static bool IsRunning { get; private set; }
   public LogScope Log { get; }
 
@@ -54,9 +56,13 @@ public class Tests : List<Test>
 
   private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(y => Assembly.Load(y)).Concat(Assembly.GetEntryAssembly());
   private static IEnumerable<Assembly> GetReferencedAssemblies(IEnumerable<string> assemblyNames) => Assembly.GetCallingAssembly().GetReferencedAssemblies().Where(x => assemblyNames.Contains(x.Name)).Select(x => Assembly.Load(x));
+  #endregion
 
-  public Tests(IEnumerable<Test> source) : base(source) =>
-    Log = Pillars.Logging.Log.Start("Tests");
+  #region Constructors
+  public Tests(IEnumerable<Test> source) : base(source) => Log = Pillars.Logging.Log.Start("Tests");
+  #endregion
+
+  #region Public Methods
 
   public void Run(Func<Test, bool> predicate = null)
   {
@@ -82,7 +88,9 @@ public class Tests : List<Test>
   }
 
   public bool TryGetTest(string name, out Test test) => _index.TryGetValue(name, out test);
+  #endregion
 
+  #region Private Methods
   private void BuildIndex()
   {
     _index = new Dictionary<string, Test>();
@@ -95,4 +103,5 @@ public class Tests : List<Test>
     foreach (var test in this)
       _index.Add(test.Name, test);
   }
+  #endregion
 }
