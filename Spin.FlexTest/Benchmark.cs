@@ -39,6 +39,7 @@ public class Benchmark
   public bool Succeeded { get; protected set; }
   public string Error { get; protected set; }
   public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
+  public Stopwatch Timer { get; } = new();
 
   public Benchmark(BenchmarkAttribute attribute, MethodInfo target, LogScope log)
   {
@@ -60,21 +61,20 @@ public class Benchmark
     if (Fixture is not null)
       Fixture.ExecutingBenchmark = this;
 
-    var sw = new Stopwatch();
     var log = Log.Start(Name);
     try
     {
       for (int i = 0; i < WarmupIterations; i++)
       {
-        sw.Restart();
+        Timer.Restart();
         action();
-        WarmupResults.Add(sw.Elapsed);
+        WarmupResults.Add(Timer.Elapsed);
       }
       for (int i = 0; i < TestIterations; i++)
       {
-        sw.Restart();
+        Timer.Restart();
         action();
-        Results.Add(sw.Elapsed);
+        Results.Add(Timer.Elapsed);
       }
       Duration = log.Finish().Elapsed;
       log.Write("Result: {duration}", OverallResult);

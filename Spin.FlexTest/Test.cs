@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Linq;
 using Spin.Pillars.Logging;
 using static System.FluentTry;
+using System.Diagnostics;
 
 namespace Spin.FlexTest;
 
@@ -12,8 +13,8 @@ public class Test
   public static IEnumerable<Test> Gather(LogScope log, params Type[] types) => Gather(log, types.Cast<Type>());
   public static IEnumerable<Test> Gather(LogScope log, IEnumerable<Type> types) => types
     .SelectMany(x => x.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
-    .Select(x => (TestAttribute: x.GetCustomAttribute<TestAttribute>(), Method: x))
-    .Where(x => x.TestAttribute is not null && x.Method.ReturnType == typeof(void))
+    .Select(x => (TestAttribute: x.GetCustomAttribute<TestAttribute>(), Method: x, Name: x.Name))
+    .Where(x => x.TestAttribute is not null && x.Method.ReturnType == typeof(void) && (x.TestAttribute.Inherit || x.Method.DeclaringType == x.Method.ReflectedType))
     .Select(x => new Test(x.TestAttribute, x.Method, log));
 
   public static IEnumerable<Test> Gather(LogScope log, params Assembly[] assemblies) => Gather(log, (IEnumerable<Assembly>)assemblies);
@@ -30,6 +31,7 @@ public class Test
   public string Error { get; protected set; }
   public LogScope Log { get; }
   public string Category { get; set; }
+  public Stopwatch Timer { get; } = new();
 
   public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
 
@@ -82,9 +84,13 @@ public class Test
     try
     {
       Fixture?.OnTestStarting();
+      Timer.Start();
       action();
+      Timer.Stop();
       Fixture?.OnTestFinished();
-      Duration = Log.Finish().Elapsed;
+      Duration = Timer.Elapsed;
+      Timer.Stop();
+      Log.Finish();
     }
     catch (TargetInvocationException ex)
     {
