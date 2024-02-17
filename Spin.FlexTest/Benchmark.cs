@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 using Spin.Pillars.Hierarchy;
 using Spin.Pillars.Logging;
+using System.Runtime.InteropServices;
+using System.Security;
 
 namespace Spin.FlexTest;
 public class Benchmark
@@ -24,6 +26,7 @@ public class Benchmark
   //Configuration
   public string Name { get; set; }
   public Path Category { get; set; }
+  public string Variation { get; set; }
   public int WarmupIterations { get; set; } = 1;
   public int TestIterations { get; set; } = 3;
 
@@ -32,13 +35,7 @@ public class Benchmark
   public LogScope Log { get; }
 
   //Results
-  public List<TimeSpan> Results { get; protected set; } = new();
-  public List<TimeSpan> WarmupResults { get; protected set; } = new();
-  public TimeSpan OverallResult => TimeSpan.FromTicks((long)Results.Select(x => x.Ticks).Average());
-  public TimeSpan Duration { get; protected set; }
-  public bool Succeeded { get; protected set; }
-  public string Error { get; protected set; }
-  public Dictionary<String, TestMetric> Metrics { get; set; } = new Dictionary<string, TestMetric>();
+  public BenchmarkResults Results { get; private set; }
   public Stopwatch Timer { get; } = new();
 
   public Benchmark(BenchmarkAttribute attribute, MethodInfo target, LogScope log)
@@ -48,6 +45,7 @@ public class Benchmark
     Name = attribute.Name;
     if (!String.IsNullOrWhiteSpace(attribute.Category))
       Category = Path.Parse(attribute.Category, '\\');
+    Variation = attribute.Variation;
     WarmupIterations = attribute.WarmupIterations;
     TestIterations = attribute.TestIterations;
     Log = log;
@@ -56,43 +54,114 @@ public class Benchmark
 
   public void Execute() => Execute(Action);
 
+  [DllImport("Kernel32.dll"), SuppressUnmanagedCodeSecurity]
+  public static extern int GetCurrentProcessorNumber();
+
   protected virtual void Execute(Action action)
   {
     if (Fixture is not null)
       Fixture.ExecutingBenchmark = this;
 
+    var getThreads = () => Process.GetCurrentProcess().Threads.OfType<ProcessThread>().Where(x => x.PriorityLevel == ThreadPriorityLevel.AboveNormal);
+    var threads = getThreads().ToList();
+
     var log = Log.Start(Name);
-    try
+    Results = new BenchmarkResults();
+    bool useBackgroundThread = true;
+    //Process.GetCurrentProcess().ProcessorAffinity = 7;
+    if (useBackgroundThread)
     {
-      for (int i = 0; i < WarmupIterations; i++)
-      {
-        Timer.Restart();
-        action();
-        WarmupResults.Add(Timer.Elapsed);
-      }
-      for (int i = 0; i < TestIterations; i++)
-      {
-        Timer.Restart();
-        action();
-        Results.Add(Timer.Elapsed);
-      }
-      Duration = log.Finish().Elapsed;
-      log.Write("Result: {duration}", OverallResult);
+      var thread = new System.Threading.Thread(x => Execute(action, log));
+      thread.Priority = System.Threading.ThreadPriority.AboveNormal;
+      thread.Start();
+      Debug.WriteLine($"After: {Process.GetCurrentProcess().Threads.Count}");
+
+      //Try to use the same physical core each time.
+      var newThreds = getThreads().Except(threads).ToList();
+      if (newThreds.Count > 1)
+        throw new Exception(newThreds.Count.ToString());
+      //newThreds.First().IdealProcessor = 0; //This doesn't do anything.
+      //8,1,7,3,6....13,14 (1-based)
+      //Used HWINFO to hard-code my fastest core.
+      newThreds.First().ProcessorAffinity = 64;  
+
+      thread.Join();
     }
-    catch (TargetInvocationException ex)
-    {
-      Duration = log.Failed(ex.InnerException).Elapsed;
-      Succeeded = false;
-      Error = ex.InnerException.Message;
-    }
-    catch (Exception ex)
-    {
-      Duration = log.Failed(ex).Elapsed;
-      Succeeded = false;
-      Error = ex.Message;
-    }
+    else
+      Execute(action, log);
 
     if (Fixture is not null)
       Fixture.ExecutingBenchmark = null;
   }
+
+  private void Execute(Action action, LogScope log)
+  {
+    Debug.WriteLine($"Current CPU: {GetCurrentProcessorNumber()}");
+    try
+    {
+      for (int i = 0; i < WarmupIterations; i++)
+      {
+        OnIterationStarted(true);
+        Timer.Restart();
+        action();
+        var elapsed = Timer.Elapsed;
+        Results.Add(elapsed, true);
+        OnIterationCompleted(elapsed);
+        Debug.WriteLine($"Current CPU: {GetCurrentProcessorNumber()}");
+      }
+      for (int i = 0; i < TestIterations; i++)
+      {
+        OnIterationStarted(false);
+        Timer.Restart();
+        action();
+        var elapsed = Timer.Elapsed;
+        Results.Add(elapsed, false);
+        OnIterationCompleted(elapsed);
+        Debug.WriteLine($"Current CPU: {GetCurrentProcessorNumber()}");
+      }
+      Results.TestDuration = log.Finish().Elapsed;
+      Results.Succeeded = true;
+      log.Write("Result: {duration}", Results.Average);
+    }
+    catch (TargetInvocationException ex)
+    {
+      Results.TestDuration = log.Failed(ex.InnerException).Elapsed;
+      Results.Succeeded = false;
+      Results.Error = ex.InnerException.Message;
+    }
+    catch (Exception ex)
+    {
+      Results.TestDuration = log.Failed(ex).Elapsed;
+      Results.Succeeded = false;
+      Results.Error = ex.Message;
+    }
+  }
+
+
+  #region IterationStartedEventArgs Subclass
+  public class IterationStartedEventArgs : EventArgs
+  {
+    public bool IsWarmup { get; private set; }
+    internal IterationStartedEventArgs(bool isWarmup) => IsWarmup = isWarmup;
+  }
+  #endregion
+
+  public event global::System.EventHandler<IterationStartedEventArgs> IterationStarted;
+  protected void OnIterationStarted(bool isWarmup) => OnIterationStarted(new IterationStartedEventArgs(isWarmup));
+  protected virtual void OnIterationStarted(IterationStartedEventArgs e) => IterationStarted?.Invoke(this, e);
+
+
+  #region IterationCompletedEventArgs Subclass
+  public class IterationCompletedEventArgs : EventArgs
+  {
+    public TimeSpan TimeSpan { get; private set; }
+    internal IterationCompletedEventArgs(TimeSpan timeSpan) => TimeSpan = timeSpan;
+  }
+  #endregion
+
+  public event global::System.EventHandler<IterationCompletedEventArgs> IterationCompleted;
+  protected void OnIterationCompleted(TimeSpan timeSpan) => OnIterationCompleted(new IterationCompletedEventArgs(timeSpan));
+  protected virtual void OnIterationCompleted(IterationCompletedEventArgs e) => IterationCompleted?.Invoke(this, e);
+
+
 }

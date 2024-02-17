@@ -15,15 +15,14 @@ public partial class BenchmarkAttribute : Attribute
 
   private string _name;
   private bool _isInitialized = false;
-  public string Name
-  {
-    get => _isInitialized ? _name : throw new Exception("Not intialized");
-  }
+  public string Name => _isInitialized ? _name : throw new Exception("Not intialized");
   public string Category { get; set; }
+  public string Variation { get; set; }
   public int WarmupIterations { get; set; } = 1;
   public int TestIterations { get; set; } = 3;
 
   public BenchmarkAttribute() { }
+  public BenchmarkAttribute(string name) => _name = name;
 
   //C# lacks a way to initialize an attribute based on its target, so we do that manually here.
   public void Intialize(MethodInfo method)
