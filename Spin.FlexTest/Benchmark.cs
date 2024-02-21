@@ -9,6 +9,8 @@ using Spin.Pillars.Hierarchy;
 using Spin.Pillars.Logging;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Threading;
+using System.Runtime;
 
 namespace Spin.FlexTest;
 public class Benchmark
@@ -22,6 +24,11 @@ public class Benchmark
 
   public static IEnumerable<Benchmark> Gather(LogScope log, params Assembly[] assemblies) => Gather(log, (IEnumerable<Assembly>)assemblies);
   public static IEnumerable<Benchmark> Gather(LogScope log, IEnumerable<Assembly> assemblies) => Gather(log, assemblies.SelectMany(x => x.GetTypes()));
+
+  private Thread _thread;
+  private volatile bool _stopBenchmark;
+  private CancellationTokenSource _cancelBenchmarkThread;
+  private bool _isBenchmarkRunning;
 
   //Configuration
   public string Name { get; set; }
@@ -59,6 +66,9 @@ public class Benchmark
 
   protected virtual void Execute(Action action)
   {
+    if (_isBenchmarkRunning)
+      throw new InvalidOperationException("Benchmark is already running");
+
     if (Fixture is not null)
       Fixture.ExecutingBenchmark = this;
 
@@ -67,57 +77,66 @@ public class Benchmark
 
     var log = Log.Start(Name);
     Results = new BenchmarkResults();
-    bool useBackgroundThread = true;
-    //Process.GetCurrentProcess().ProcessorAffinity = 7;
-    if (useBackgroundThread)
+
+    _stopBenchmark = false;
+    _cancelBenchmarkThread = new();
+
+    _thread = new Thread(x => Execute(action, log));
+    _thread.Priority = ThreadPriority.AboveNormal;
+    _thread.Start();
+
+    _isBenchmarkRunning = true;
+    //Try to use the same physical core each time.
+    var newThreds = getThreads().Except(threads).ToList();
+    if (newThreds.Count > 1)
+      throw new Exception(newThreds.Count.ToString());
+    //newThreds.First().IdealProcessor = 0; //This doesn't do anything.
+    //8,1,7,3,6....13,14 (1-based)
+    //Used HWINFO to hard-code my fastest core.
+    newThreds.First().ProcessorAffinity = 64;
+  }
+
+  public bool TryCancel()
+  {
+    if (!_isBenchmarkRunning)
+      throw new InvalidOperationException("Benchmark is not running");
+
+    _stopBenchmark = true;
+    //Can't abort =( LOOK AT HOW THEY MASSACRED MY BOY (ControlledExecution)
+    if (!_thread.Join(TimeSpan.FromSeconds(2)))
     {
-      var thread = new System.Threading.Thread(x => Execute(action, log));
-      thread.Priority = System.Threading.ThreadPriority.AboveNormal;
-      thread.Start();
-      Debug.WriteLine($"After: {Process.GetCurrentProcess().Threads.Count}");
-
-      //Try to use the same physical core each time.
-      var newThreds = getThreads().Except(threads).ToList();
-      if (newThreds.Count > 1)
-        throw new Exception(newThreds.Count.ToString());
-      //newThreds.First().IdealProcessor = 0; //This doesn't do anything.
-      //8,1,7,3,6....13,14 (1-based)
-      //Used HWINFO to hard-code my fastest core.
-      newThreds.First().ProcessorAffinity = 64;  
-
-      thread.Join();
+      _cancelBenchmarkThread.Cancel();
+      if (!_thread.Join(TimeSpan.FromSeconds(2)))
+        return false;
     }
-    else
-      Execute(action, log);
-
-    if (Fixture is not null)
-      Fixture.ExecutingBenchmark = null;
+    return true;
   }
 
   private void Execute(Action action, LogScope log)
   {
-    Debug.WriteLine($"Current CPU: {GetCurrentProcessorNumber()}");
     try
     {
       for (int i = 0; i < WarmupIterations; i++)
       {
+        if (_stopBenchmark)
+          break;
         OnIterationStarted(true);
         Timer.Restart();
-        action();
+        ControlledExecution.Run(action, _cancelBenchmarkThread.Token);
         var elapsed = Timer.Elapsed;
         Results.Add(elapsed, true);
         OnIterationCompleted(elapsed);
-        Debug.WriteLine($"Current CPU: {GetCurrentProcessorNumber()}");
       }
       for (int i = 0; i < TestIterations; i++)
       {
+        if (_stopBenchmark)
+          break;
         OnIterationStarted(false);
         Timer.Restart();
-        action();
+        ControlledExecution.Run(action, _cancelBenchmarkThread.Token);
         var elapsed = Timer.Elapsed;
         Results.Add(elapsed, false);
         OnIterationCompleted(elapsed);
-        Debug.WriteLine($"Current CPU: {GetCurrentProcessorNumber()}");
       }
       Results.TestDuration = log.Finish().Elapsed;
       Results.Succeeded = true;
@@ -134,6 +153,13 @@ public class Benchmark
       Results.TestDuration = log.Failed(ex).Elapsed;
       Results.Succeeded = false;
       Results.Error = ex.Message;
+    }
+    finally
+    {
+      if (Fixture is not null)
+        Fixture.ExecutingBenchmark = null;
+      OnCompleted();
+      _isBenchmarkRunning = false;
     }
   }
 
@@ -162,6 +188,12 @@ public class Benchmark
   public event global::System.EventHandler<IterationCompletedEventArgs> IterationCompleted;
   protected void OnIterationCompleted(TimeSpan timeSpan) => OnIterationCompleted(new IterationCompletedEventArgs(timeSpan));
   protected virtual void OnIterationCompleted(IterationCompletedEventArgs e) => IterationCompleted?.Invoke(this, e);
+
+
+  public event EventHandler Completed;
+  protected void OnCompleted() => OnCompleted(EventArgs.Empty);
+  protected virtual void OnCompleted(EventArgs e) => Completed?.Invoke(this, e);
+
 
 
 }
