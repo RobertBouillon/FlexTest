@@ -140,6 +140,8 @@ public class Benchmark
       }
       Results.TestDuration = log.Finish().Elapsed;
       Results.Succeeded = true;
+      if(Results.Variance.HasValue)
+        Results.Metrics.Add("Variance", Results.Variance);
       log.Write("Result: {duration}", Results.Average);
     }
     catch (TargetInvocationException ex)
