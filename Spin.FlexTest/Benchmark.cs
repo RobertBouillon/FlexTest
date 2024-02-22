@@ -44,6 +44,7 @@ public class Benchmark
   //Results
   public BenchmarkResults Results { get; private set; }
   public Stopwatch Timer { get; } = new();
+  public TimeSpan? OverrideDuration { get; set; }
 
   public Benchmark(BenchmarkAttribute attribute, MethodInfo target, LogScope log)
   {
@@ -73,7 +74,7 @@ public class Benchmark
       Fixture.ExecutingBenchmark = this;
 
     var getThreads = () => Process.GetCurrentProcess().Threads.OfType<ProcessThread>().Where(x => x.PriorityLevel == ThreadPriorityLevel.AboveNormal);
-    var threads = getThreads().ToList();
+    var threads = getThreads().Select(x => x.Id).ToHashSet();
 
     var log = Log.Start(Name);
     Results = new BenchmarkResults();
@@ -87,7 +88,7 @@ public class Benchmark
 
     _isBenchmarkRunning = true;
     //Try to use the same physical core each time.
-    var newThreds = getThreads().Except(threads).ToList();
+    var newThreds = getThreads().Except(x => threads.Contains(x.Id)).ToList();
     if (newThreds.Count > 1)
       throw new Exception(newThreds.Count.ToString());
     //newThreds.First().IdealProcessor = 0; //This doesn't do anything.
@@ -120,7 +121,7 @@ public class Benchmark
       {
         if (_stopBenchmark)
           break;
-        OnIterationStarted(true);
+        OnIterationStarted(true, i + 1);
         Timer.Restart();
         ControlledExecution.Run(action, _cancelBenchmarkThread.Token);
         var elapsed = Timer.Elapsed;
@@ -131,16 +132,23 @@ public class Benchmark
       {
         if (_stopBenchmark)
           break;
-        OnIterationStarted(false);
+        OnIterationStarted(false, i + 1);
         Timer.Restart();
         ControlledExecution.Run(action, _cancelBenchmarkThread.Token);
         var elapsed = Timer.Elapsed;
         Results.Add(elapsed, false);
         OnIterationCompleted(elapsed);
       }
+
+      if (OverrideDuration.HasValue)
+      {
+        Results.Results.Clear();
+        Results.Results.Add(OverrideDuration.Value);
+      }
+
       Results.TestDuration = log.Finish().Elapsed;
       Results.Succeeded = true;
-      if(Results.Variance.HasValue)
+      if (Results.Variance.HasValue)
         Results.Metrics.Add("Variance", Results.Variance);
       log.Write("Result: {duration}", Results.Average);
     }
@@ -160,8 +168,8 @@ public class Benchmark
     {
       if (Fixture is not null)
         Fixture.ExecutingBenchmark = null;
-      OnCompleted();
       _isBenchmarkRunning = false;
+      OnCompleted();
     }
   }
 
@@ -170,12 +178,13 @@ public class Benchmark
   public class IterationStartedEventArgs : EventArgs
   {
     public bool IsWarmup { get; private set; }
-    internal IterationStartedEventArgs(bool isWarmup) => IsWarmup = isWarmup;
+    public int Iteration { get; private set; }
+    internal IterationStartedEventArgs(bool isWarmup, int iteration) => (IsWarmup, Iteration) = (isWarmup, iteration);
   }
   #endregion
 
   public event global::System.EventHandler<IterationStartedEventArgs> IterationStarted;
-  protected void OnIterationStarted(bool isWarmup) => OnIterationStarted(new IterationStartedEventArgs(isWarmup));
+  protected void OnIterationStarted(bool isWarmup, int iteration) => OnIterationStarted(new IterationStartedEventArgs(isWarmup, iteration));
   protected virtual void OnIterationStarted(IterationStartedEventArgs e) => IterationStarted?.Invoke(this, e);
 
 
@@ -197,5 +206,5 @@ public class Benchmark
   protected virtual void OnCompleted(EventArgs e) => Completed?.Invoke(this, e);
 
 
-
+  public override string ToString() => Name;
 }
