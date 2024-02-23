@@ -60,6 +60,17 @@ public class Benchmark
     Action = () => target.Invoke(Fixture, Array.Empty<Object>());
   }
 
+  public Benchmark(Action action, string name, Path category, LogScope log, int warmupIterations = 1, int testIterations = 3, string variation = null)
+  {
+    Name = name;
+    Category = category;
+    Variation = variation;
+    WarmupIterations = warmupIterations;
+    TestIterations = testIterations;
+    Log = log;
+    Action = action;
+  }
+
   public void Execute() => Execute(Action);
 
   [DllImport("Kernel32.dll"), SuppressUnmanagedCodeSecurity]
