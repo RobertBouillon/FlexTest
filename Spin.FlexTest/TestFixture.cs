@@ -10,6 +10,7 @@ namespace Spin.FlexTest;
 public abstract class TestFixture : IDisposable
 {
   public Test ExecutingTest { get; protected internal set; }
+  public Benchmark ExecutingBenchmark { get; protected internal set; }
 
   public static IEnumerable<Type> Gather(Assembly assembly) => assembly
     .GetTypes()
@@ -74,5 +75,21 @@ public abstract class TestFixture : IDisposable
       test.Fixture = this;
 
     return tests;
+  }
+
+  public virtual IEnumerable<Benchmark> GatherBenchmarks(LogScope log)
+  {
+    Log = log;
+    var benchmarks = GetType()
+      .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+      .Where(x => x.HasCustomAttribute<BenchmarkAttribute>() && x.ReturnType == typeof(IEnumerable<Benchmark>) && x.GetParameters().Length == 0)
+      .SelectMany(x => (IEnumerable<Benchmark>)x.Invoke(this, Array.Empty<Object>()))
+      .Concat(Benchmark.Gather(Log, GetType()))
+      .ToList();
+
+    foreach (var test in benchmarks)
+      test.Fixture = this;
+
+    return benchmarks;
   }
 }
