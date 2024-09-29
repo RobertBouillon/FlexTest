@@ -71,7 +71,10 @@ public class Tests : List<Test>
     Log.Capture("Tests", () =>
     {
       foreach (var test in this.Where(predicate ?? (x => true)))
+      {
         test.Execute();
+        OnTestRan(test);
+      }
     });
 
     IsRunning = false;
@@ -104,4 +107,19 @@ public class Tests : List<Test>
       _index.Add(test.Name, test);
   }
   #endregion
+
+
+  #region TestRanEventArgs Subclass
+  public class TestRanEventArgs : EventArgs
+  {
+    public Test Test { get; private set; }
+    internal TestRanEventArgs(Test test) => Test = test ?? throw new ArgumentNullException(nameof(test));
+  }
+  #endregion
+
+  public event global::System.EventHandler<TestRanEventArgs> TestRan;
+  protected void OnTestRan(Test test) => OnTestRan(new TestRanEventArgs(test));
+  protected virtual void OnTestRan(TestRanEventArgs e) => TestRan?.Invoke(this, e);
+
+
 }

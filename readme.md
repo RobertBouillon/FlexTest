@@ -171,4 +171,3 @@ partial class Foo
   }
 }
 ```
-
