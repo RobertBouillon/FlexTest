@@ -31,7 +31,7 @@ namespace Spin.FlexText.TestAdapter
       return h.DiscoverTests();
     }
 
-    private TestCase CreateTestCase(Test test, string source)
+    public static TestCase CreateTestCase(Test test, string source)
     {
       var ret = new TestCase(
       test.TestExplorerName ?? test.Name,
