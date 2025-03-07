@@ -9,6 +9,10 @@ namespace Spin.FlexTest;
 
 public abstract class TestFixture : IDisposable
 {
+  protected int DefaultRandomSeed { get; set; } = 123456;
+  private int _randomSeed;
+  protected Random Random { get; set; }
+
   public Test ExecutingTest { get; protected internal set; }
   public Benchmark ExecutingBenchmark { get; protected internal set; }
 
@@ -32,8 +36,15 @@ public abstract class TestFixture : IDisposable
   public LogScope Log { get; set; }
   public virtual bool CanReuse => false;
 
+  protected int RandomSeed
+  {
+    get => _randomSeed;
+    set => Random = new(_randomSeed = value);
+  }
+
   //protected void Fail(string reason = null) => ExecutingTest.Fail(reason);
   protected void Fail(string reason = null) => throw new Exception(reason); //Stop executing the test. Find a better way do to this that isn't so noisy (e.g. Assert() should stop execution without needing if(!Assert()) return;
+  public IEnumerable<T> GenerateRandom<T>(int count = 100) => Enumerable.Range(0, count).Select(_=>(T)Convert.ChangeType(Random.Next(), typeof(T)));
 
   protected virtual void Assert(bool condition, string reason = null)
   {
@@ -58,7 +69,7 @@ public abstract class TestFixture : IDisposable
     return new Test(attribute, generator, Log, augment, action);
   }
 
-  public virtual void OnTestStarting() { }
+  public virtual void OnTestStarting() => Random = new Random(_randomSeed = DefaultRandomSeed); 
   public virtual void OnTestFinished() { }
   public virtual void Dispose() { }
   public virtual IEnumerable<Test> GatherTests(LogScope log)
