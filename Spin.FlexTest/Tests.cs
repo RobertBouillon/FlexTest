@@ -51,7 +51,7 @@ public class Tests : List<Test>
   private static IEnumerable<Assembly> GetTestableAssemblies()
   {
     var flextest = typeof(Tests).Assembly.GetName().FullName;
-    return GetReferencedAssemblies().Where(x => x.GetReferencedAssemblies().Any(x => x.FullName == flextest));
+    return GetReferencedAssemblies().Where(x => x.GetReferencedAssemblies().Any(y => y.FullName == flextest));
   }
 
   private static IEnumerable<Assembly> GetReferencedAssemblies() => Assembly.GetEntryAssembly().GetReferencedAssemblies().Select(y => Assembly.Load(y)).Concat(Assembly.GetEntryAssembly());

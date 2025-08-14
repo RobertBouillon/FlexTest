@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Spin.Pillars.FileSystem.OS;
 
 namespace Spin.FlexTest;
 
@@ -15,6 +16,11 @@ public abstract class TestFixture : IDisposable
 
   public Test ExecutingTest { get; protected internal set; }
   public Benchmark ExecutingBenchmark { get; protected internal set; }
+  protected virtual OsDirectory SolutionDirectory => OsDirectory.CurrentExecuting
+    .Traverse(x => x.ParentDirectory)
+    .First(x => x
+      .GetFiles()
+      .Any(y => y.Extension.Equals("sln", StringComparison.InvariantCultureIgnoreCase))); 
 
   public static IEnumerable<Type> Gather(Assembly assembly) => assembly
     .GetTypes()
