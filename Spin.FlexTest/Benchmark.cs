@@ -105,7 +105,9 @@ public class Benchmark
     //newThreds.First().IdealProcessor = 0; //This doesn't do anything.
     //8,1,7,3,6....13,14 (1-based)
     //Used HWINFO to hard-code my fastest core.
-    newThreds.First().ProcessorAffinity = 64;
+
+
+    // newThreds.First().ProcessorAffinity = 64;
   }
 
   public bool TryCancel()
