@@ -31,11 +31,8 @@ namespace Spin.FlexText.TestAdapter
 
     public void RunTests(IEnumerable<string> sources, IRunContext runContext, IFrameworkHandle frameworkHandle)
     {
-      if (sources is null)
-        return;
-
       //Not implemented. Need test cases, so need to recreate the objects using methods in the Discoverer. Not sure it's needed.
-      frameworkHandle.SendMessage(Microsoft.VisualStudio.TestPlatform.ObjectModel.Logging.TestMessageLevel.Error, "Not Implemented");
+      // frameworkHandle.SendMessage(Microsoft.VisualStudio.TestPlatform.ObjectModel.Logging.TestMessageLevel.Error, "Not Implemented");
     }
 
     private void RunTest(Test test, TestCase testCase, IFrameworkHandle handle)
