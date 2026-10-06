@@ -36,6 +36,7 @@ public class Benchmark
   public string Variation { get; set; }
   public int WarmupIterations { get; set; } = 1;
   public int TestIterations { get; set; } = 3;
+  public bool SingleThreaded { get; set; } = false;
 
   public TestFixture Fixture { get; set; }
   public Action Action { get; }

@@ -3,8 +3,6 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-using Spin.Pillars.Hierarchy;
-
 namespace Spin.FlexTest;
 [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = true)]
 public partial class BenchmarkAttribute : Attribute
@@ -31,10 +29,27 @@ public partial class BenchmarkAttribute : Attribute
       throw new InvalidOperationException("Already initialized");
 
     _name ??= ParseName(method);
-
+    SetCategory(method);
+    
     _isInitialized = true;
   }
 
+  private void SetCategory(MethodInfo method)
+  {
+    if (method.ReflectedType == method.DeclaringType)
+      return;
+
+    if (method.ReflectedType.DeclaringType is null)
+      return;
+
+    var category =
+      BenchmarkContextAttribute.TryFind(method.ReflectedType).Succeeded(out var attribute) && attribute.Category is not null ?
+        attribute.Category :
+        method.ReflectedType.DeclaringType.Name;
+    
+    Category = Category is null ? category : $@"{Category}\{category}";
+  }
+  
   private string ParseName(MethodInfo method)
   {
     var name = _nameParser.Match(method.Name).Groups["name"].Value;
